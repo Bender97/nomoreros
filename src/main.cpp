@@ -134,6 +134,19 @@ void loadFeaturesData() {
     loadNormalizationConfig(data.norm_path, features_num, min_vals, p2p_vals);
 }
 
+
+void updateGridCellsElevation(std::vector< std::vector<Point*> > &grid_buckets, std::vector<Point> &grid) {
+    for (int cell_idx=0; cell_idx<data.grid_side_length_squared; ++cell_idx) {
+        /// if the cell has a suff num of points, set the avg elev to the pred cell
+        if (grid_buckets[cell_idx].size() >= 10)
+            grid[cell_idx].z = getAvgElevationOfPointsInCell(grid_buckets[cell_idx]);
+            /// else remove points which are unknown (only for visualization)
+        else {
+            grid[cell_idx].z         = HIGHEST_Z_VALUE;
+        }
+    }
+}
+
 int main() {
 
 	std::vector<Point> grid;
@@ -154,13 +167,15 @@ int main() {
 
 
     sortPointsInGrid(points, grid_buckets, data);
+    updateGridCellsElevation(grid_buckets, grid);
 
     fillFeatureMatrix(points, grid, grid_buckets);
 
     draw(points, labels, grid);
 
 
-    //projectToImage(points, labels, data);
+//    projectToImage(grid, labels, data);
+    projectToImage(points, labels, data);
 
 
 	return 0;

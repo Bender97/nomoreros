@@ -202,5 +202,11 @@ bool columnIsRequested(int col, std::vector<int> &skipColWithIndex) {
     return true;
 }
 
+float getAvgElevationOfPointsInCell(std::vector<Point *> cell) {
+    float z_sum = .0f;
+    for (auto &point: cell) z_sum += point->z;
+    return ( z_sum / ( (float) cell.size() ) );
+}
+
 
 #endif //PROJECTING_UTILITY_HPP
