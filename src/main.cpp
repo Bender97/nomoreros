@@ -15,9 +15,7 @@ Features feature;
 // SVM
 cv::Mat features_matrix, predictions_vector;
 std::vector<int> cellIsPredictable;
-std::vector<float> traversability;
 
-cv::Ptr<cv::ml::SVM> svm;
 int features_num;
 std::vector<int> feats_indexes;
 std::vector<float> min_vals, p2p_vals;         // needed to normalize new data
@@ -56,19 +54,11 @@ void draw(std::vector<Point> &scan_points, std::vector<int> &labels, std::vector
 			color[2] = 255;
 
 			cv::Rect rect(col-data.sq_px_half, row-data.sq_px_half, data.sq_px, data.sq_px);
-//			cv::rectangle(img, rect, cv::Scalar(int(features_matrix.at<float>(i, 11) *1721) % 255,
-//                                                int(features_matrix.at<float>(i, 11) *1721) % 255,
-//                                                int(features_matrix.at<float>(i, 11)  *173) % 255),
-//                                            3);
-            if (traversability[i]==0.0f) {
-                cv::rectangle(img, rect, cv::Scalar(0, 0, 255),3);
-            }
-            else if (traversability[i]==1.0f) {
-                cv::rectangle(img, rect, cv::Scalar(255, 255, 255),3);
-            }
-            else if (traversability[i]==2.0f) {
-                cv::rectangle(img, rect, cv::Scalar(255, 0, 0),3);
-            }
+			cv::rectangle(img, rect, cv::Scalar(int(features_matrix.at<float>(i, 10) *1721) % 255,
+                                                int(features_matrix.at<float>(i, 10) *1721) % 255,
+                                                int(features_matrix.at<float>(i, 10)  *173) % 255),
+                                            3);
+
 		}
 
 	}
@@ -85,7 +75,6 @@ void initGrid(std::vector<Point> &grid) {
     predictions_vector = cv::Mat::zeros(data.grid_side_length_squared, 1, CV_32FC1);
     cellIsPredictable.resize(data.grid_side_length_squared);
 	grid.resize(data.grid_side_length_squared);
-	traversability.resize(data.grid_side_length_squared);
 
 	float x, y;
     for (int col=0; col<data.grid_side_length; ++col) {
@@ -133,36 +122,9 @@ void fillFeatureMatrix( std::vector<Point> &points, std::vector<Point> &grid, st
     }
 }
 
-void predictFeatureMatrix() {
-    int64 start = cv::getTickCount();
-    svm->predict(features_matrix, predictions_vector);
-    auto svm_latency = static_cast<int64>(1000.0f * (float)(cv::getTickCount() - start) / cv::getTickFrequency());
-    cout << "SVM_latency: " << svm_latency << endl;
 
-    for (int i = 0; i < predictions_vector.rows; ++i) {
-//        cout << cellIsPredictable[i] << " ";
-        cout << predictions_vector.at<float>(i, 0) << " ";
-    }
-    cout << endl;
-}
-
-void setPredictedValuesToPredictedCloud() {
-    for (int i=0; i<data.grid_side_length_squared; i++) {
-        if (cellIsPredictable[i])
-            traversability[i] = (predictions_vector.at<float>(i, 0) > 0 ? (float) TRAV_CELL_LABEL : (float) NOT_TRAV_CELL_LABEL);
-        else
-            traversability[i] =  UNKNOWN_CELL_LABEL;
-    }
-}
-
-
-
-void loadSVM() {
-    svm = cv::ml::SVM::load(data.svm_model_path);
-
-    assert(svm->isTrained());
-
-    features_num = svm->getVarCount();
+void loadFeaturesData() {
+    features_num = 19;
 
     // stack the indexes of the features that svm will use
     for (int i=0; i<22; ++i) {
@@ -178,9 +140,9 @@ int main() {
     std::vector<Point> points;
     std::vector< std::vector<Point*> > grid_buckets;
     std::vector<int> labels;
+    loadFeaturesData();
 
 
-    loadSVM();
 	initGrid(grid);
 
 	string lidarpath = data.datapath + "000000.bin";
@@ -194,10 +156,6 @@ int main() {
     sortPointsInGrid(points, grid_buckets, data);
 
     fillFeatureMatrix(points, grid, grid_buckets);
-
-    predictFeatureMatrix();
-
-    setPredictedValuesToPredictedCloud();
 
     draw(points, labels, grid);
 
