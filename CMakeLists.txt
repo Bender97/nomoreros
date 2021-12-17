@@ -12,6 +12,8 @@ endif()
 
 # find dependencies
 find_package(OpenCV REQUIRED )
+find_package(Eigen3 REQUIRED)
+find_package(PCL REQUIRED)
 
 
 include_directories(
@@ -19,11 +21,24 @@ include_directories(
         ${OpenCV_INCLUDE_DIRS}
         )
 
+add_library(IMULoader src/IMULoader.cpp include/IMULoader.h)
+target_link_libraries(IMULoader ${OpenCV_LIBRARIES} )
+
 add_library(Features src/Features.cpp include/Features.h)
-target_link_libraries(Features ${OpenCV_LIBRARIES} )
+target_link_libraries(Features ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
+
+#add_library(PointCloudDeskew src/PointCloudDeskew.cpp include/PointCloudDeskew.h)
+#target_link_libraries(PointCloudDeskew ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
+
+
+set(dependencies IMULoader Features #[[PointCloudDeskew]])
+
 
 add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBRARIES} Features )
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBRARIES} ${dependencies} )
+
+add_executable(loadposes src/Poses.cpp)
+target_link_libraries(loadposes ${OpenCV_LIBRARIES} ${dependencies} )
 
 install(TARGETS
         ${PROJECT_NAME} ${PROJECT_NAME}

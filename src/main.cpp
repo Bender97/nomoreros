@@ -7,7 +7,8 @@
 #include "Features.h"
 #include "Point.h"
 #include "utility.hpp"
-
+#include "IMULoader.h"
+//#include "PointCloudDeskew.h"
 using namespace std;
 
 Data data;
@@ -37,6 +38,9 @@ void draw(std::vector<Point> &scan_points, std::vector<int> &labels, std::vector
 			color[0] = data.color_map[l][0];
 			color[1] = data.color_map[l][1];
 			color[2] = data.color_map[l][2];
+			color[0] = 0;
+			color[1] = 0;
+			color[2] = 255;
 		}
 
 	}
@@ -45,7 +49,7 @@ void draw(std::vector<Point> &scan_points, std::vector<int> &labels, std::vector
 		Point p = grid[i];
 
 		int row = int(p.y*data.px_per_m) + data.height/2;
-		int col = int(p.x*data.px_per_m) + data.width/2;
+		int col = int(p.z*data.px_per_m) + data.width/2;
 
 		if (row>=0 && row<data.height && col>=0 && col < data.width) {
 			auto & color = img.at<cv::Vec3b>(row, col);
@@ -147,7 +151,53 @@ void updateGridCellsElevation(std::vector< std::vector<Point*> > &grid_buckets, 
     }
 }
 
+
+void projectWithColors(std::vector<Point> &points, std::string img_path) {
+    cv::Mat canvas = cv::Mat(data.height, data.width, CV_8UC3, cv::Scalar(0, 0, 0));
+    cv::Mat img = cv::imread(img_path, cv::IMREAD_COLOR);
+
+    for (size_t i = 0; i<points.size(); i++) {
+        Point p = points[i];
+
+        int canvas_row = data.height - (int(p.z*data.px_per_m) + data.height/2);
+        int canvas_col = data.width - (int(p.y*data.px_per_m) + data.width/2);
+
+        if (canvas_row<0 || canvas_row>=data.height || canvas_col<0 || canvas_col >= data.width) continue;
+        auto & canvas_color = canvas.at<cv::Vec3b>(canvas_row, canvas_col);
+
+        if (p.x<0) {
+            canvas_color[0] = 0;
+            canvas_color[1] = 0;
+            canvas_color[2] = 255;
+        }
+        else {
+            cv::Point2f scaled = projectPoint(p.x, p.y, p.z, data);
+            if (scaled.x >= 0 && scaled.x < (float)img.cols && scaled.y >= 0 && scaled.y < (float)img.rows) {
+                auto &img_color = img.at<cv::Vec3b>((int) scaled.y, (int) scaled.x);
+                canvas_color[0] = img_color[0];
+                canvas_color[1] = img_color[1];
+                canvas_color[2] = img_color[2];
+            }
+            else {
+                canvas_color[0] = 0;
+                canvas_color[1] = 0;
+                canvas_color[2] = 255;
+            }
+        }
+
+
+
+
+    }
+
+    cv::imshow("wind", canvas);
+    cv::waitKey(0);
+}
+
 int main() {
+
+    IMULoader imu_loader;
+    imu_loader.loadIMU_from_file();
 
 	std::vector<Point> grid;
     std::vector<Point> points;
@@ -161,21 +211,46 @@ int main() {
 	string lidarpath = data.datapath + "000000.bin";
 	string labelpath = data.labelspath + "000000.label";
 
+    lidarpath="/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/velodyne_points/data/0000000000.bin";
+
     // load data from files
 	loadLidarScans(lidarpath, points);
-    loadLabels(labelpath, labels);
+//    loadLabels(labelpath, labels);
 
 
-    sortPointsInGrid(points, grid_buckets, data);
-    updateGridCellsElevation(grid_buckets, grid);
+//    sortPointsInGrid(points, grid_buckets, data);
+//    updateGridCellsElevation(grid_buckets, grid);
 
-    fillFeatureMatrix(points, grid, grid_buckets);
+//    fillFeatureMatrix(points, grid, grid_buckets);
 
-    draw(points, labels, grid);
+    //draw(points, labels, grid);
 
+//    PointCloudDeskew pcd;
+//    float rot[3];
+//    rot[0] = imu_loader.wx;
+//    rot[1] = imu_loader.wy;
+//    rot[2] = imu_loader.wz;
+//
+//    projectWithColors(points,  "/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/image_03/data/0000000000.png");
+//    for (size_t i=0; i<points.size(); i++) {
+//        pcd.deskewPoint(&(points[i]), .0, rot);
+//    }
 
 //    projectToImage(grid, labels, data);
-    projectToImage(points, labels, data);
+//    projectToImage(points, labels, data);
+
+//    projectWithColors(points,  "/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/image_03/data/0000000000.png");
+
+
+    for (int i=0; ; i++) {
+        std::string s = std::to_string(i);
+        s.insert(s.begin(), 10 - s.size(), '0');
+
+        lidarpath="/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/velodyne_points/data/" + s + ".bin";
+        std::string img_path = "/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/image_03/data/" + s + ".png";
+        loadLidarScans(lidarpath, points);
+        projectWithColors(points, img_path);
+    }
 
 
 	return 0;

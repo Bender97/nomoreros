@@ -7,11 +7,16 @@
 #define PROJECTING_UTILITY_HPP
 
 
-void loadLidarScans(std::string lidarpath, std::vector<Point> &scans) {
+void loadLidarScans(std::string &lidarpath, std::vector<Point> &scans) {
     float f;
     std::ifstream fin(lidarpath, std::ios::binary);
+    assert(fin.is_open());
+
+
     Point p;
     int cont = 0;
+
+    scans.clear();
 
     while (fin.read(reinterpret_cast<char*>(&f), sizeof(float))) {
         switch(cont) {
@@ -33,7 +38,7 @@ void loadLidarScans(std::string lidarpath, std::vector<Point> &scans) {
     fin.close();
 }
 
-void loadLabels(std::string labelpath, std::vector<int32_t> &labels) {
+void loadLabels(std::string &labelpath, std::vector<int32_t> &labels) {
     int32_t lab;
     std::ifstream lin(labelpath, std::ios::binary);
     while (lin.read(reinterpret_cast<char*>(&lab), sizeof(int32_t))) {
@@ -99,18 +104,19 @@ void sortPointsInGrid(std::vector<Point> &cloudToSort, std::vector<std::vector<P
 
 
 void projectToImage(std::vector<Point> &points , std::vector<int> &labels, Data &data) {
-    cv::Mat img = cv::imread("../imgs/img000000.png", cv::IMREAD_COLOR);
+    cv::Mat img = cv::imread("/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/image_02/data/0000000000.png", cv::IMREAD_COLOR);
+//    cv::Mat img = cv::imread("../imgs/img000000.png", cv::IMREAD_COLOR);
 
     for (size_t i=0; i<points.size(); i++) {
         Point p = points[i];
         if (p.x<0) continue;
-        int32_t l = labels[i];
+//        int32_t l = labels[i];
         cv::Point2f scaled = projectPoint(p.x, p.y, p.z, data);
         if (scaled.x >= 0 && scaled.x<img.cols && scaled.y>=0 && scaled.y<img.rows) {
-            cv::Vec3b & color = img.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
-            color[0] = data.color_map[l][0];
-            color[1] = data.color_map[l][1];
-            color[2] = data.color_map[l][2];
+            auto & color = img.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
+            color[0] = 0; //data.color_map[l][0];
+            color[1] = 0; //data.color_map[l][1];
+            color[2] = 255; //data.color_map[l][2];
         }
     }
     cv::Mat resized;
@@ -207,6 +213,8 @@ float getAvgElevationOfPointsInCell(std::vector<Point *> cell) {
     for (auto &point: cell) z_sum += point->z;
     return ( z_sum / ( (float) cell.size() ) );
 }
+
+
 
 
 #endif //PROJECTING_UTILITY_HPP

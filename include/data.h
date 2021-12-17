@@ -25,7 +25,7 @@ public:
 
     const int height = 1500;
     const int width = 1500;
-    const int px_per_m = 40;
+    const int px_per_m = 75 ;
 
     const int sq_px = (int) round(0.4f * px_per_m);
     const int sq_px_half = (int) round(sq_px / 2);
@@ -70,36 +70,70 @@ public:
             {259, std::array<int, 3>{255, 0, 0}},
     };
 
+    // original projection matrix
+//    const double P200 = 7.18856e+02;
+//    const double P201 = 0.0e+00;
+//    const double P202 = 6.071928e+02;
+//    const double P203 = 4.538225e+01;
+//    const double P210 = 0.0e+00;
+//    const double P211 = 7.18856e+02;
+//    const double P212 = 1.852157e+02;
+//    const double P213 = -1.130887e-01;
+//    const double P220 = 0.0e+00;
+//    const double P221 = 0.0e+00;
+//    const double P222 = 1.0e+00;
+//    const double P223 = 3.779761e-03;
 
-    const double P200 = 7.18856e+02;
-    const double P201 = 0.0e+00;
-    const double P202 = 6.071928e+02;
-    const double P203 = 4.538225e+01;
-    const double P210 = 0.0e+00;
-    const double P211 = 7.18856e+02;
-    const double P212 = 1.852157e+02;
-    const double P213 = -1.130887e-01;
+    // taken from internet
+    const double P200 = 7.070493000000e+02;
+    const double P201 = 0.000000000000e+00;
+    const double P202 = 6.040814000000e+02;
+    const double P203 = 0.000000000000e+00;
+    const double P210 = 0.000000000000e+00;
+    const double P211 = 7.070493000000e+02;
+    const double P212 = 1.805066000000e+02;
+    const double P213 = 0.000000000000e+00;
     const double P220 = 0.0e+00;
     const double P221 = 0.0e+00;
     const double P222 = 1.0e+00;
-    const double P223 = 3.779761e-03;
+    const double P223 = 0;
 
-    const double Tr00 = 4.276802385584e-04;
-    const double Tr01 = -9.999672484946e-01;
-    const double Tr02 = -8.084491683471e-03;
-    const double Tr03 = -4.069766e-03;
-    const double Tr10 = -7.210626507497e-03;
-    const double Tr11 = 8.081198471645e-03;
-    const double Tr12 = -9.999413164504e-01;
-    const double Tr13 = -7.631618e-02;
-    const double Tr20 = 9.999738645903e-01;
-    const double Tr21 = 4.859485810390e-04;
-    const double Tr22 = -7.206933692422e-03;
-    const double Tr23 = -2.717806e-01;
+
+    // transformation matrix taken from "the original kitti paper" - thesis
+    const double Tr00 = 6.927964000000e-03;
+    const double Tr01 = -9.999722000000e-01;
+    const double Tr02 = -2.757829000000e-03;
+    const double Tr03 = -2.457729000000e-02;
+    const double Tr10 = -1.162982000000e-03;
+    const double Tr11 = 2.749836000000e-03;
+    const double Tr12 = -9.999955000000e-01;
+    const double Tr13 = -6.127237000000e-02;
+    const double Tr20 = 9.999753000000e-01;
+    const double Tr21 = 6.931141000000e-03;
+    const double Tr22 = -1.143899000000e-03;
+    const double Tr23 = -3.321029000000e-01;
     const double Tr30 = 0;
     const double Tr31 = 0;
     const double Tr32 = 0;
     const double Tr33 = 1;
+
+    // transformation matrix taken from the calib file of raw kitti dataset
+//    const double Tr00 = 7.533745e-03;
+//    const double Tr01 = -9.999714e-01 ;
+//    const double Tr02 = -6.166020e-04 ;
+//    const double Tr03 = -4.069766e-03 ;
+//    const double Tr10 = 1.480249e-02 ;
+//    const double Tr11 = 7.280733e-04 ;
+//    const double Tr12 = -9.998902e-01 ;
+//    const double Tr13 = -7.631618e-02 ;
+//    const double Tr20 = 9.998621e-01 ;
+//    const double Tr21 = 7.523790e-03 ;
+//    const double Tr22 = 1.480755e-02 ;
+//    const double Tr23 = -2.717806e-01;
+//    const double Tr30 = 0;
+//    const double Tr31 = 0;
+//    const double Tr32 = 0;
+//    const double Tr33 = 1;
 };
 
 #endif // TRAV_ANALYSIS_DATA_H
