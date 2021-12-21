@@ -38,7 +38,10 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBRARIES} ${dependencies} )
 
 add_executable(loadposes src/Poses.cpp)
-target_link_libraries(loadposes ${OpenCV_LIBRARIES} ${dependencies} )
+target_link_libraries(loadposes ${OpenCV_LIBRARIES} ${PCL_LIBRARIES}  IMULoader)
+
+add_executable(loadimu src/testingIMU.cpp)
+target_link_libraries(loadimu ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} IMULoader )
 
 install(TARGETS
         ${PROJECT_NAME} ${PROJECT_NAME}

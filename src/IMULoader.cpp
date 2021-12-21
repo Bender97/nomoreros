@@ -4,7 +4,7 @@
 
 #include "IMULoader.h"
 
-IMULoader::IMULoader() {
+IMULoader::IMULoader(std::string path) {
     orientation_covariance[0] = 1.0;
     orientation_covariance[1] = .0;
     orientation_covariance[2] = .0;
@@ -34,12 +34,20 @@ IMULoader::IMULoader() {
     linear_acceleration_covariance[6] = .0;
     linear_acceleration_covariance[7] = .0;
     linear_acceleration_covariance[8] = 8.999999999999999e-08;
+
+    loadIMU_from_file(path);
 }
 
-void IMULoader::loadIMU_from_file() {
-    std::string path = "/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/oxts/data/0000000000.txt";
+void IMULoader::loadIMU_from_file(std::string path) {
+//    std::string path = "/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/oxts/data/0000000000.txt";
     std::string line;
+
+
+
     std::ifstream in(path);
+    if (in.is_open()) std::cout << "reading from: " << path << std::endl;
+    else std::cout << " FAIL!!!!!!!!!!" << std::endl;
+
 
     in >> lat;
     in >> lon;
@@ -54,12 +62,12 @@ void IMULoader::loadIMU_from_file() {
     in >> wx; in >> wy; in >> wz; in >> wf; in >> wl; in >> wu;
 
     in.close();
+//
+//    std::cout << "ax: " << ax << std::endl;
+//    std::cout << "ay: " << ay << std::endl;
+//    std::cout << "az: " << az << std::endl;
 
-    std::cout << "wx: " << wz << std::endl;
-    std::cout << "wy: " << wy << std::endl;
-    std::cout << "wz: " << wz << std::endl;
-
-    load_time();
+//    load_time();
 
 }
 

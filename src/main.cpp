@@ -196,8 +196,9 @@ void projectWithColors(std::vector<Point> &points, std::string img_path) {
 
 int main() {
 
-    IMULoader imu_loader;
-    imu_loader.loadIMU_from_file();
+        std::string path = "/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/oxts/data/0000000000.txt";
+    IMULoader imu_loader(path);
+//    imu_loader.loadIMU_from_file();
 
 	std::vector<Point> grid;
     std::vector<Point> points;

@@ -31,8 +31,8 @@ public:
     int64 timestamp;
     int64 nanosecs;
 
-    IMULoader();
-    void loadIMU_from_file();
+    IMULoader(std::string path);
+    void loadIMU_from_file(std::string path);
     void load_time();
 
 };
