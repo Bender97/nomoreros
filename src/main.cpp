@@ -171,17 +171,26 @@ void projectGridToImage(std::vector< std::vector<Point*> > &grid_buckets, std::v
         }
     }
 
-    for (size_t i=0; i<gridPoints.size(); i++) {
-        Point p = gridPoints[i];
+    for (size_t bucketidx=0; bucketidx<gridPoints.size(); bucketidx++) {
+        Point p = gridPoints[bucketidx];
         if (p.x<0) continue;
 
-        cv::Point2f tl = projectPoint(p.x+0.2f, p.y+0.2f, p.z, data);
-        cv::Point2f tr = projectPoint(p.x+0.2f, p.y-0.2f, p.z, data);
-        cv::Point2f bl = projectPoint(p.x-0.2f, p.y+0.2f, p.z, data);
-        cv::Point2f br = projectPoint(p.x-0.2f, p.y-0.2f, p.z, data);
+        auto bucket = grid_buckets[bucketidx];
+        if (bucket.empty()) continue;
+        double az = bucket[0]->z; for (auto &point : bucket) if (point->z > az) az = point->z;
+        double zz = bucket[0]->z; for (auto &point : bucket) if (point->z < zz) zz = point->z;
+
+        cv::Point2f atl = projectPoint(p.x+0.2f, p.y+0.2f, az, data);
+        cv::Point2f atr = projectPoint(p.x+0.2f, p.y-0.2f, az, data);
+        cv::Point2f abl = projectPoint(p.x-0.2f, p.y+0.2f, az, data);
+        cv::Point2f abr = projectPoint(p.x-0.2f, p.y-0.2f, az, data);
+        cv::Point2f ztl = projectPoint(p.x+0.2f, p.y+0.2f, zz, data);
+        cv::Point2f ztr = projectPoint(p.x+0.2f, p.y-0.2f, zz, data);
+        cv::Point2f zbl = projectPoint(p.x-0.2f, p.y+0.2f, zz, data);
+        cv::Point2f zbr = projectPoint(p.x-0.2f, p.y-0.2f, zz, data);
 
 
-        int32_t l = labels[i];
+        int32_t l = labels[bucketidx];
         cv::Point2f scaled = projectPoint(p.x, p.y, p.z, data);
         if (scaled.x >= 0 && scaled.x<img.cols && scaled.y>=0 && scaled.y<img.rows) {
             cv::Vec3b & color = img.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
@@ -189,10 +198,18 @@ void projectGridToImage(std::vector< std::vector<Point*> > &grid_buckets, std::v
             color[1] = data.color_map[l][1];
             color[2] = data.color_map[l][2];
 
-            cv::line(img, tl, tr, colors[i], 1);
-            cv::line(img, tr, br, colors[i], 1);
-            cv::line(img, br, bl, colors[i], 1);
-            cv::line(img, bl, tl, colors[i], 1);
+            cv::line(img, atl, atr, colors[bucketidx], 1);
+            cv::line(img, atr, abr, colors[bucketidx], 1);
+            cv::line(img, abr, abl, colors[bucketidx], 1);
+            cv::line(img, abl, atl, colors[bucketidx], 1);
+            cv::line(img, ztl, ztr, colors[bucketidx], 1);
+            cv::line(img, ztr, zbr, colors[bucketidx], 1);
+            cv::line(img, zbr, zbl, colors[bucketidx], 1);
+            cv::line(img, zbl, ztl, colors[bucketidx], 1);
+            cv::line(img, atl, ztl, colors[bucketidx], 1);
+            cv::line(img, atr, ztr, colors[bucketidx], 1);
+            cv::line(img, abr, zbr, colors[bucketidx], 1);
+            cv::line(img, abl, zbl, colors[bucketidx], 1);
 
         }
     }
