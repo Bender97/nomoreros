@@ -19,7 +19,7 @@ std::vector<int> cellIsPredictable;
 int features_num;
 std::vector<int> feats_indexes;
 std::vector<float> min_vals, p2p_vals;         // needed to normalize new data
-std::vector<int> skipColWithIndex({11, 20, 21});
+    std::vector<int> skipColWithIndex({11, 20, 21});
 
 void draw(std::vector<Point> &scan_points, std::vector<int> &labels, std::vector<Point> &grid) {
 
