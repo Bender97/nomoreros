@@ -7,8 +7,10 @@
 #include "Features.h"
 #include "Point.h"
 #include "utility.hpp"
+#include <cstdlib>
 
 using namespace std;
+
 
 Data data;
 Features feature;
@@ -141,21 +143,31 @@ void loadFeaturesData() {
     loadNormalizationConfig(data.norm_path, features_num, min_vals, p2p_vals);
 }
 
-void projectGridToImage(std::vector<Point> &points, std::vector<Point> &gridPoints , std::vector<int> &labels, Data &data) {
+void projectGridToImage(std::vector< std::vector<Point*> > &grid_buckets, std::vector<Point> &gridPoints , std::vector<int> &labels, Data &data) {
     cv::Mat img = cv::imread("../imgs/img000000.png", cv::IMREAD_COLOR);
 
-    for (size_t i=0; i<points.size(); i++) {
-        Point p = points[i];
-        if (p.x<0) continue;
+    std::vector<cv::Scalar> colors(grid_buckets.size());
+    for (auto &color: colors) color = cv::Scalar((double)std::rand() / RAND_MAX * 255,
+                                                 (double)std::rand() / RAND_MAX * 255,
+                                                 (double)std::rand() / RAND_MAX * 255);
 
-        int32_t l = labels[i];
-        cv::Point2f scaled = projectPoint(p.x, p.y, p.z, data);
-        if (scaled.x >= 0 && scaled.x<img.cols && scaled.y>=0 && scaled.y<img.rows) {
-            cv::Vec3b & color = img.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
-            color[0] = data.color_map[l][0];
-            color[1] = data.color_map[l][1];
-            color[2] = data.color_map[l][2];
+    for (int bucketidx=0; bucketidx<grid_buckets.size(); bucketidx++) {
 
+        auto bucket = grid_buckets[bucketidx];
+
+        for (size_t i = 0; i < bucket.size(); i++) {
+            Point *p = bucket[i];
+            if (p->x < 0) continue;
+
+            int32_t l = labels[i];
+            cv::Point2f scaled = projectPoint(p->x, p->y, p->z, data);
+            if (scaled.x >= 0 && scaled.x < img.cols && scaled.y >= 0 && scaled.y < img.rows) {
+                cv::Vec3b &color = img.at<cv::Vec3b>((int) scaled.y, (int) scaled.x);
+                color[0] = colors[bucketidx][0];
+                color[1] = colors[bucketidx][1];
+                color[2] = colors[bucketidx][2];
+
+            }
         }
     }
 
@@ -177,10 +189,10 @@ void projectGridToImage(std::vector<Point> &points, std::vector<Point> &gridPoin
             color[1] = data.color_map[l][1];
             color[2] = data.color_map[l][2];
 
-            cv::line(img, tl, tr, cv::Scalar(255, 255, 255), 1);
-            cv::line(img, tr, br, cv::Scalar(255, 255, 255), 1);
-            cv::line(img, br, bl, cv::Scalar(255, 255, 255), 1);
-            cv::line(img, bl, tl, cv::Scalar(255, 255, 255), 1);
+            cv::line(img, tl, tr, colors[i], 1);
+            cv::line(img, tr, br, colors[i], 1);
+            cv::line(img, br, bl, colors[i], 1);
+            cv::line(img, bl, tl, colors[i], 1);
 
         }
     }
@@ -205,6 +217,7 @@ void updateGridCellsElevation(std::vector< std::vector<Point*> > &grid_buckets, 
 
 int main() {
 
+    std::srand(time(0));
 	std::vector<Point> grid;
     std::vector<Point> points;
     std::vector< std::vector<Point*> > grid_buckets;
@@ -227,13 +240,13 @@ int main() {
 
     fillFeatureMatrix(points, grid, grid_buckets);
 
-    projectToImage(points, labels, data);
-    projectGridToImage(points, grid, labels, data);
+//    projectToImage(points, labels, data);
+    projectGridToImage(grid_buckets, grid, labels, data);
 
-    draw(points, labels, grid);
+//    draw(points, labels, grid);
 
 //    projectToImage(grid, labels, data);
-    projectToImage(points, labels, data);
+//    projectToImage(points, labels, data);
 
 
 	return 0;
