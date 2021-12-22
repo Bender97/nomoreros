@@ -19,52 +19,59 @@ std::vector<int> cellIsPredictable;
 int features_num;
 std::vector<int> feats_indexes;
 std::vector<float> min_vals, p2p_vals;         // needed to normalize new data
-    std::vector<int> skipColWithIndex({11, 20, 21});
+std::vector<int> skipColWithIndex({11, 20, 21});
 
 void draw(std::vector<Point> &scan_points, std::vector<int> &labels, std::vector<Point> &grid) {
+    cv::Mat img = cv::Mat::zeros(data.height, data.width, CV_8UC3);
+    for (int featidx=0; featidx<features_matrix.cols; featidx++) {
 
-	cv::Mat img = cv::Mat(data.height, data.width, CV_8UC3, cv::Scalar(0, 0, 0));
+        // draw just the cloud points
+        for (size_t i = 0; i < scan_points.size(); i++) {
+            Point p = scan_points[i];
 
-	for (size_t i = 0; i<scan_points.size(); i++) {
-		Point p = scan_points[i];
+            int row = int(p.y * data.px_per_m) + data.height / 2;
+            int col = int(p.x * data.px_per_m) + data.width / 2;
 
-		int row = int(p.y*data.px_per_m) + data.height/2;
-		int col = int(p.x*data.px_per_m) + data.width/2;
+            if (row >= 0 && row < data.height && col >= 0 && col < data.width) {
+                int32_t l = labels[i];
+                auto &color = img.at<cv::Vec3b>(row, col);
+                color[0] = data.color_map[l][0];
+                color[1] = data.color_map[l][1];
+                color[2] = data.color_map[l][2];
+            }
 
-		if (row>=0 && row<data.height && col>=0 && col < data.width) {
-			int32_t l = labels[i];
-			auto & color = img.at<cv::Vec3b>(row, col);
-			color[0] = data.color_map[l][0];
-			color[1] = data.color_map[l][1];
-			color[2] = data.color_map[l][2];
-		}
+        }
 
-	}
+        // draw the rectangle of the
+        for (int i = 0; i < data.grid_side_length_squared; i++) {
+            Point p = grid[i];
 
-	for (int i = 0; i<data.grid_side_length_squared; i++) {
-		Point p = grid[i];
+            int row = int(p.y * data.px_per_m) + data.height / 2;
+            int col = int(p.x * data.px_per_m) + data.width / 2;
 
-		int row = int(p.y*data.px_per_m) + data.height/2;
-		int col = int(p.x*data.px_per_m) + data.width/2;
+            if (row >= 0 && row < data.height && col >= 0 && col < data.width) {
+                auto &color = img.at<cv::Vec3b>(row, col);
+                color[0] = 0;
+                color[1] = 0;
+                color[2] = 255;
 
-		if (row>=0 && row<data.height && col>=0 && col < data.width) {
-			auto & color = img.at<cv::Vec3b>(row, col);
-			color[0] = 0;
-			color[1] = 0;
-			color[2] = 255;
+                float featval = features_matrix.at<float>(i, featidx);
 
-			cv::Rect rect(col-data.sq_px_half, row-data.sq_px_half, data.sq_px, data.sq_px);
-			cv::rectangle(img, rect, cv::Scalar(int(features_matrix.at<float>(i, 10) *1721) % 255,
-                                                int(features_matrix.at<float>(i, 10) *1721) % 255,
-                                                int(features_matrix.at<float>(i, 10)  *173) % 255),
-                                            3);
+                cv::Rect rect(col - data.sq_px_half, row - data.sq_px_half, data.sq_px, data.sq_px);
+                cv::rectangle(img, rect, cv::Scalar(
+                                      (int) (featval * 1721) % 255,
+                                      (int) (featval * 1721) % 255,
+                                      (int) (featval * 173) % 255),
+                              3);
 
-		}
+            }
 
-	}
+        }
 
-	cv::imshow("wind", img);
-	cv::waitKey(0);
+        std::cout << "SHOWING FEAT " << featidx << " / " << features_matrix.cols << std::endl;
+        cv::imshow("wind", img);
+        cv::waitKey(0);
+    }
 }
 
 
@@ -134,6 +141,55 @@ void loadFeaturesData() {
     loadNormalizationConfig(data.norm_path, features_num, min_vals, p2p_vals);
 }
 
+void projectGridToImage(std::vector<Point> &points, std::vector<Point> &gridPoints , std::vector<int> &labels, Data &data) {
+    cv::Mat img = cv::imread("../imgs/img000000.png", cv::IMREAD_COLOR);
+
+    for (size_t i=0; i<points.size(); i++) {
+        Point p = points[i];
+        if (p.x<0) continue;
+
+        int32_t l = labels[i];
+        cv::Point2f scaled = projectPoint(p.x, p.y, p.z, data);
+        if (scaled.x >= 0 && scaled.x<img.cols && scaled.y>=0 && scaled.y<img.rows) {
+            cv::Vec3b & color = img.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
+            color[0] = data.color_map[l][0];
+            color[1] = data.color_map[l][1];
+            color[2] = data.color_map[l][2];
+
+        }
+    }
+
+    for (size_t i=0; i<gridPoints.size(); i++) {
+        Point p = gridPoints[i];
+        if (p.x<0) continue;
+
+        cv::Point2f tl = projectPoint(p.x+0.2f, p.y+0.2f, p.z, data);
+        cv::Point2f tr = projectPoint(p.x+0.2f, p.y-0.2f, p.z, data);
+        cv::Point2f bl = projectPoint(p.x-0.2f, p.y+0.2f, p.z, data);
+        cv::Point2f br = projectPoint(p.x-0.2f, p.y-0.2f, p.z, data);
+
+
+        int32_t l = labels[i];
+        cv::Point2f scaled = projectPoint(p.x, p.y, p.z, data);
+        if (scaled.x >= 0 && scaled.x<img.cols && scaled.y>=0 && scaled.y<img.rows) {
+            cv::Vec3b & color = img.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
+            color[0] = data.color_map[l][0];
+            color[1] = data.color_map[l][1];
+            color[2] = data.color_map[l][2];
+
+            cv::line(img, tl, tr, cv::Scalar(255, 255, 255), 1);
+            cv::line(img, tr, br, cv::Scalar(255, 255, 255), 1);
+            cv::line(img, br, bl, cv::Scalar(255, 255, 255), 1);
+            cv::line(img, bl, tl, cv::Scalar(255, 255, 255), 1);
+
+        }
+    }
+    cv::Mat resized;
+    cv::resize(img, resized, cv::Size(img.cols*2, img.rows*2));
+
+    cv::imshow("wind", resized);
+    cv::waitKey(0);
+}
 
 void updateGridCellsElevation(std::vector< std::vector<Point*> > &grid_buckets, std::vector<Point> &grid) {
     for (int cell_idx=0; cell_idx<data.grid_side_length_squared; ++cell_idx) {
@@ -171,8 +227,10 @@ int main() {
 
     fillFeatureMatrix(points, grid, grid_buckets);
 
-    draw(points, labels, grid);
+    projectToImage(points, labels, data);
+    projectGridToImage(points, grid, labels, data);
 
+    draw(points, labels, grid);
 
 //    projectToImage(grid, labels, data);
     projectToImage(points, labels, data);
