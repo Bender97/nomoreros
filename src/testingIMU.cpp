@@ -10,23 +10,59 @@
 #include <data.h>
 
 const Data data;
+/*
+//// linear velocity at time zero
+// float vx = 6.98390467761731f;
+// float vy = 0.18333130383767f;
+// float vz = 0.15356837236718f;
+//
+//// linear acceleration
+// float ax = 1.18885125806239f;
+// float ay = 0.75031638425215f;
+// float az = 13.01972102311150f;
+//
+//// angular velocity
+// float wx = 0.17625848913349f;
+// float wy = 0.19206552946943f;
+// float wz = 0.02318471760338f;*/
 
-// linear velocity at time zero
-const float vx = 6.98390467761731f;
-const float vy = 0.18333130383767f;
-const float vz = 0.15356837236718f;
 
+ double imutime     = .335092332;  //actually not used, just needed to know wheter imu data is between velo time limits
+ double velo_start  = .265816674;
+ double velo_end    = .369008876;
+ double veloperiodhalf  = (velo_end - velo_start)/2.0;
+ double imgtime     = .327963904;
+
+// linear velocity
+ float vx = 8.6225009735591f;
+ float vy = -0.023377717262865f;
+ float vz = -0.14317006071049f;
 // linear acceleration
-const float ax = 1.18885125806239f;
-const float ay = 0.75031638425215f;
-const float az = 13.01972102311150f;
-
+ float ax = -0.041490794905849f;
+ float ay = -0.20837820539826f;
+ float az = 9.093745089874f;
 // angular velocity
-const float wx = 0.17625848913349f;
-const float wy = 0.19206552946943f;
-const float wz = 0.02318471760338f;
+ float wx = 0.023343899978178f;
+ float wy = -0.070017406558051f;
+ float wz = -0.049960205878114f;
 
-Eigen::Transform<float, 3, 2> Tr, Tr_inverse;
+ /*
+//// linear velocity at time zero
+// float vx = 8.6713784653144f;
+// float vy = -0.019461233360934f;
+// float vz = -0.095766948135752f;
+//
+//// linear acceleration
+// float ax = 0.36472797260825f;
+// float ay = -0.60402693871872f;
+// float az = 9.093745089874f;
+//
+//// angular velocity
+// float wx = -0.0098349511973597f;
+// float wy = -0.04121262160891f;
+// float wz = -0.041177780031438f;*/
+
+Eigen::Transform<float, 3, 2> transStartInverse;
 
 bool show(cv::Mat &img, int timeout) {
     cv::Mat copy;
@@ -88,36 +124,36 @@ cv::Point2f projectPoint(double x, double y, double z) {
     return scaled;
 }
 
+double minyaw = 10000.0;
+double maxyaw = -10000.0;
+
+double mindt = 10000.0;
+double maxdt = -10000.0;
+
+#define GETYAW(x, y) ( atan2((y), (x)) + (M_PI)/4 )
+
 void deskewPoint(pcl::PointXYZI &p) {
-    double yaw = atan2(p.y, p.x);
-    double dt = .05*yaw/(M_PI/2.0) -.05;
+    double yaw = GETYAW(p.y, p.x);
+    double dt = (velo_start + veloperiodhalf * yaw / (M_PI_2)) - imgtime;
 
-    double prev_vx = vx;// + ax*dt;
-    double prev_vy = vy;// + ay*dt;
-    double prev_vz = vz;// + az*dt;
-
-    double dx = 0.005*ax + prev_vx*dt;
-    double dy = 0.005*ay + prev_vy*dt;
-    double dz = 0.005*az + prev_vz*dt;
+    double dx = -.5*ax*dt*dt + vx*dt;
+    double dy = -.5*ay*dt*dt + vy*dt;
+    double dz = -.5*az*dt*dt + vz*dt;
 
     double orient_x = wx*dt;
     double orient_y = wy*dt;
     double orient_z = wz*dt;
 
     auto Trans = pcl::getTransformation(dx, dy, dz, orient_x, orient_y, orient_z);
-//    auto Tr_inv = Tr.inverse();
-//
-//    auto TM = Tr_inv * Tr;
+//    auto Trans = transStartInverse*trans_final;
 
     double x = Trans(0,0) * p.x + Trans(0,1) * p.y + Trans(0,2) * p.z + Trans(0,3);
     double y = Trans(1,0) * p.x + Trans(1,1) * p.y + Trans(1,2) * p.z + Trans(1,3);
-//    double z = Trans(2,0) * p.x + Trans(2,1) * p.y + Trans(2,2) * p.z + Trans(2,3);
+    double z = Trans(2,0) * p.x + Trans(2,1) * p.y + Trans(2,2) * p.z + Trans(2,3);
 
     p.x = x;
     p.y = y;
-//    p.z = z;
-
-//    std::cout << "POS (dt= " << dt << ")  :  " << p.x << "  " << p.y << "  " << p.z << " )" << std::endl;
+    p.z = z;
 
 }
 
@@ -128,9 +164,10 @@ void projectToImage(std::vector<pcl::PointXYZI> &points, cv::Mat &img) {
     for (size_t i=0; i<points.size(); i++) {
         pcl::PointXYZI p = points[i];
 
-        deskewPoint(p);
+//        deskewPoint(p);
 
         if (p.x<0) continue;
+
         cv::Point2f scaled = projectPoint(p.x, p.y, p.z);
         if (scaled.x >= 0 && scaled.x<img.cols && scaled.y>=0 && scaled.y<img.rows) {
             auto & color = copy.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
@@ -201,51 +238,72 @@ void drawPoint2(cv::Mat &canvas, pcl::PointXYZI &p, int b, int g, int r) {
 void projectToImage2(std::vector<pcl::PointXYZI> &points, cv::Mat &img) {
     std::vector<float> dists(points.size());
     for (size_t i=0; i<points.size(); i++) {
+        if (points[i].x < 0) continue;
+
+        cv::Point2f scaled = projectPoint(points[i].x, points[i].y, points[i].z);
+        if (scaled.x >= 0 && scaled.x < img.cols && scaled.y >= 0 && scaled.y < img.rows) {
+            double yaw = GETYAW(points[i].x, points[i].y);
+            double dt = (velo_start + veloperiodhalf * yaw / (M_PI_2)) - imgtime;
+            if (yaw < minyaw) minyaw = yaw;
+            else if (yaw > maxyaw) maxyaw = yaw;
+            if (dt < mindt) mindt = dt;
+            else if (dt > maxdt) maxdt = dt;
+        }
+    }
+    std::cout << "minyaw: " << minyaw << " \t maxyaw: " << maxyaw << std::endl;
+    std::cout << "mindt : " << mindt  << " \t maxdt : " << maxdt  << std::endl;
+
+    for (size_t i=0; i<points.size(); i++) {
+        deskewPoint(points[i]);
         dists[i] = points[i].x*points[i].x + points[i].y*points[i].y + points[i].z*points[i].z;
     }
-    for (float dist = 20.0f; dist>=5.0f; dist-=0.1f) {
+    for (float dist = 20.0f; dist>=5.0f; dist-=0.5f) {
         float sqdist = dist*dist;
-
         cv::Mat copy = img.clone();
 
         for (size_t i = 0; i < points.size(); i++) {
             pcl::PointXYZI p = points[i];
             if (p.x < 0 || dists[i] > sqdist) continue;
+
             cv::Point2f scaled = projectPoint(p.x, p.y, p.z);
             if (scaled.x >= 0 && scaled.x < img.cols && scaled.y >= 0 && scaled.y < img.rows) {
                 auto &color = copy.at<cv::Vec3b>((int) scaled.y, (int) scaled.x);
                 color[0] = 0;
                 color[1] = 0;
-                color[2] = 255;
+                color[2] = (int) ( GETYAW(p.x, p.y) * 255.0 / (M_PI_2));
             }
         }
         std::cout << "DIST: " << dist << std::endl;
-
-        cv::imwrite("/home/fusy/pointdeskewed1.png", copy);
-
         cv::Mat resized;
         cv::resize(copy, resized, cv::Size(img.cols * 2, img.rows * 2));
-
         cv::imshow("wind", resized);
         char c = cv::waitKey(0);
         if (c == 'q') break;
-        if (c == 'p') dist += 0.2f;
+        if (c == 'p') dist += 1.0f;
     }
 }
 
 int main() {
 
-    std::string img_path   = "/home/fusy/bags/00/image_02/data/0000000001.png";
-    std::string lidar_path = "/home/fusy/bags/00/velodyne/000001.bin";
+    for (int i=0; i<1; i++) {
+        std::string old_str = std::to_string(i);
+//        std::string img_path = "/home/fusy/bags/00/image_02/data/" + std::string(10 - MIN(10, old_str.length()), '0') + old_str  +".png";
+//        std::string lidar_path = "/home/fusy/bags/00/velodyne/" + std::string(6 - MIN(6, old_str.length()), '0') + old_str  + ".bin";
+        std::string img_path = "/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/image_02/data/" + std::string(10 - MIN(10, old_str.length()), '0') + old_str  +".png";
+        std::string lidar_path = "/home/fusy/bags/2011_09_26_drive_0002_sync/2011_09_26/2011_09_26_drive_0002_sync/velodyne_points/data/" + std::string(10 - MIN(10, old_str.length()), '0') + old_str  + ".bin";
 
-    std::vector<pcl::PointXYZI> cloud;
+        std::cout << img_path << std::endl << lidar_path << std::endl;
+
+        std::vector<pcl::PointXYZI> cloud;
 //    IMULoader imu;
 
-    cv::Mat img = cv::imread(img_path, cv::IMREAD_COLOR);
-    loadCloud(lidar_path, cloud);
+        cv::Mat img = cv::imread(img_path, cv::IMREAD_COLOR);
+        loadCloud(lidar_path, cloud);
 
-        projectToImage(cloud, img);
-    projectToImage2(cloud, img);
+//        projectToImage(cloud, img);
+        projectToImage2(cloud, img);
+    }
+//    projectToImage2(cloud, img);
 
 //    projectToImage1(cloud, img);
 //    projectToImage(cloud, img);
