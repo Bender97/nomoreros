@@ -42,7 +42,7 @@ void loadLabels(std::string labelpath, std::vector<int32_t> &labels) {
     lin.close();
 }
 
-cv::Point2f projectPoint(double x, double y, double z, Data &data) {
+cv::Point2i projectPoint(double x, double y, double z, Data &data) {
     double xt, yt, zt; // the 3D velodyne point projected to the 3D camera frame
     double u, v, w; // the projection of the 3D point to the 2D camera frame (not scaled)
     // the (scaled) projection of the 3D point to the 2D camera frame
@@ -58,9 +58,9 @@ cv::Point2f projectPoint(double x, double y, double z, Data &data) {
     w = data.P220*xt + data.P221*yt + data.P222*zt + data.P223;
 
     // scale the pixel
-    cv::Point2f scaled;
-    scaled.x = std::roundf(u / w);
-    scaled.y = std::roundf(v / w);
+    cv::Point2i scaled;
+    scaled.x = (int) std::roundf(u / w);
+    scaled.y = (int) std::roundf(v / w);
     return scaled;
 }
 

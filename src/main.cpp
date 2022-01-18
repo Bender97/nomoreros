@@ -143,31 +143,28 @@ void loadFeaturesData() {
     loadNormalizationConfig(data.norm_path, features_num, min_vals, p2p_vals);
 }
 
-void projectGridToImage(std::vector< std::vector<Point*> > &grid_buckets, std::vector<Point> &gridPoints , std::vector<int> &labels, Data &data) {
-    cv::Mat img = cv::imread("../imgs/img000000.png", cv::IMREAD_COLOR);
+void projectGridToImage(std::vector< std::vector<Point*> > &grid_buckets, std::vector<Point> &gridPoints , std::vector<int> &labels, Data &data, cv::Mat &img) {
+
 
     std::vector<cv::Scalar> colors(grid_buckets.size());
     for (auto &color: colors) color = cv::Scalar((double)std::rand() / RAND_MAX * 255,
                                                  (double)std::rand() / RAND_MAX * 255,
                                                  (double)std::rand() / RAND_MAX * 255);
 
+
+    // DRAW the points which are inside each buckets
     for (int bucketidx=0; bucketidx<grid_buckets.size(); bucketidx++) {
-
         auto bucket = grid_buckets[bucketidx];
-
-        for (size_t i = 0; i < bucket.size(); i++) {
-            Point *p = bucket[i];
+        for (auto p: bucket) {
             if (p->x < 0) continue;
-
-            int32_t l = labels[i];
-            cv::Point2f scaled = projectPoint(p->x, p->y, p->z, data);
+            cv::Point2i scaled = projectPoint(p->x, p->y, p->z, data);
             if (scaled.x >= 0 && scaled.x < img.cols && scaled.y >= 0 && scaled.y < img.rows) {
-                cv::Vec3b &color = img.at<cv::Vec3b>((int) scaled.y, (int) scaled.x);
-                color[0] = colors[bucketidx][0];
-                color[1] = colors[bucketidx][1];
-                color[2] = colors[bucketidx][2];
-
+                auto &color = img.at<cv::Vec3b>((int) scaled.y, (int) scaled.x);
+                color[0] = (int)colors[bucketidx][0];
+                color[1] = (int)colors[bucketidx][1];
+                color[2] = (int)colors[bucketidx][2];
             }
+
         }
     }
 
@@ -177,26 +174,35 @@ void projectGridToImage(std::vector< std::vector<Point*> > &grid_buckets, std::v
 
         auto bucket = grid_buckets[bucketidx];
         if (bucket.empty()) continue;
-        double az = bucket[0]->z; for (auto &point : bucket) if (point->z > az) az = point->z;
-        double zz = bucket[0]->z; for (auto &point : bucket) if (point->z < zz) zz = point->z;
 
-        cv::Point2f atl = projectPoint(p.x+0.2f, p.y+0.2f, az, data);
-        cv::Point2f atr = projectPoint(p.x+0.2f, p.y-0.2f, az, data);
-        cv::Point2f abl = projectPoint(p.x-0.2f, p.y+0.2f, az, data);
-        cv::Point2f abr = projectPoint(p.x-0.2f, p.y-0.2f, az, data);
-        cv::Point2f ztl = projectPoint(p.x+0.2f, p.y+0.2f, zz, data);
-        cv::Point2f ztr = projectPoint(p.x+0.2f, p.y-0.2f, zz, data);
-        cv::Point2f zbl = projectPoint(p.x-0.2f, p.y+0.2f, zz, data);
-        cv::Point2f zbr = projectPoint(p.x-0.2f, p.y-0.2f, zz, data);
+        double Z = bucket[0]->z, z = Z;
+        double X = bucket[0]->x, x = X;
+        double Y = bucket[0]->y, y = Y;
+        for (auto &point : bucket) {
+            if (point->x > X) X = point->x;
+            if (point->x < x) x = point->x;
+            if (point->y > Y) Y = point->y;
+            if (point->y < y) y = point->y;
+            if (point->z > Z) Z = point->z;
+            if (point->z < z) z = point->z;
+        }
 
+        cv::Point2f atl = projectPoint(X, Y, Z, data);
+        cv::Point2f atr = projectPoint(X, y, Z, data);
+        cv::Point2f abl = projectPoint(x, Y, Z, data);
+        cv::Point2f abr = projectPoint(x, y, Z, data);
+        cv::Point2f ztl = projectPoint(X, Y, z, data);
+        cv::Point2f ztr = projectPoint(X, y, z, data);
+        cv::Point2f zbl = projectPoint(x, Y, z, data);
+        cv::Point2f zbr = projectPoint(x, y, z, data);
 
         int32_t l = labels[bucketidx];
-        cv::Point2f scaled = projectPoint(p.x, p.y, p.z, data);
+        cv::Point2i scaled = projectPoint(p.x, p.y, p.z, data);
         if (scaled.x >= 0 && scaled.x<img.cols && scaled.y>=0 && scaled.y<img.rows) {
-            cv::Vec3b & color = img.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
-            color[0] = data.color_map[l][0];
-            color[1] = data.color_map[l][1];
-            color[2] = data.color_map[l][2];
+//            cv::Vec3b & color = img.at<cv::Vec3b>((int)scaled.y, (int)scaled.x);
+//            color[0] = data.color_map[l][0];
+//            color[1] = data.color_map[l][1];
+//            color[2] = data.color_map[l][2];
 
             cv::line(img, atl, atr, colors[bucketidx], 1);
             cv::line(img, atr, abr, colors[bucketidx], 1);
@@ -235,36 +241,45 @@ void updateGridCellsElevation(std::vector< std::vector<Point*> > &grid_buckets, 
 int main() {
 
     std::srand(time(0));
-	std::vector<Point> grid;
-    std::vector<Point> points;
-    std::vector< std::vector<Point*> > grid_buckets;
-    std::vector<int> labels;
+
     loadFeaturesData();
 
-
-	initGrid(grid);
-
-	string lidarpath = data.datapath + "000000.bin";
-	string labelpath = data.labelspath + "000000.label";
-
-    // load data from files
-	loadLidarScans(lidarpath, points);
-    loadLabels(labelpath, labels);
+    for (size_t i=0; i<1000; i++) {
+        std::string old_str = std::to_string(i);
+        auto name = std::string(6 - MIN(6, old_str.length()), '0') + old_str;
+        std::vector<Point> grid;
+        std::vector<Point> points;
+        std::vector<std::vector<Point *> > grid_buckets;
+        std::vector<int> labels;
 
 
-    sortPointsInGrid(points, grid_buckets, data);
-    updateGridCellsElevation(grid_buckets, grid);
+        initGrid(grid);
 
-    fillFeatureMatrix(points, grid, grid_buckets);
+        string lidarpath = data.datapath + name + ".bin";
+        string labelpath = data.labelspath + name + ".label";
+        string imgpath   = "/home/fusy/bags/00/image_02/data/" + std::string(10 - MIN(10, old_str.length()), '0') + old_str  +".png";
+
+
+        cv::Mat img = cv::imread(imgpath, cv::IMREAD_COLOR);
+
+        // load data from files
+        loadLidarScans(lidarpath, points);
+        loadLabels(labelpath, labels);
+
+
+        sortPointsInGrid(points, grid_buckets, data);
+        updateGridCellsElevation(grid_buckets, grid);
+
+        fillFeatureMatrix(points, grid, grid_buckets);
 
 //    projectToImage(points, labels, data);
-    projectGridToImage(grid_buckets, grid, labels, data);
+        projectGridToImage(grid_buckets, grid, labels, data, img);
 
 //    draw(points, labels, grid);
 
 //    projectToImage(grid, labels, data);
 //    projectToImage(points, labels, data);
 
-
+    }
 	return 0;
 }
